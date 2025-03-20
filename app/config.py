@@ -2,7 +2,6 @@ import os
 from pydantic import BaseModel
 
 
-
 class Settings(BaseModel):
     jwt_secret_key: str = os.getenv("JWT_SECRET", "dev_secret_key_change_in_production")
     db_host: str = os.getenv("DB_HOST", "swecc-db-instance")
@@ -12,10 +11,10 @@ class Settings(BaseModel):
     db_password: str = os.getenv("DB_PASSWORD", "swecc")
 
     jwt_algorithm: str = "HS256"
-    
+
     host: str = "0.0.0.0"
     port: int = 8004
-    
+
     redis_host: str = "swecc-redis-instance"
     redis_port: int = 6379
 
@@ -25,7 +24,6 @@ class Settings(BaseModel):
         "http://localhost:3000",
         "http://api.swecc.org",
     ]
-
 
 
 settings = Settings()

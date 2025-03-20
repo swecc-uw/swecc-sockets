@@ -1,4 +1,4 @@
-sfrom fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import logging
@@ -69,7 +69,7 @@ async def websocket_endpoint(websocket: WebSocket, service: str, token: str):
     if not user:
         logger.warning(f"Authentication failed for WebSocket connection")
         return
-        
+
     user_id = user["user_id"]
     username = user["username"]
 
@@ -79,14 +79,16 @@ async def websocket_endpoint(websocket: WebSocket, service: str, token: str):
         logger.warning(f"Unknown service requested: {service}")
         await websocket.accept()
         await websocket.send_text(
-            json.dumps({
-                "type": "error",
-                "message": f"Unknown service: {service}. Available services: echo, presence"
-            })
+            json.dumps(
+                {
+                    "type": "error",
+                    "message": f"Unknown service: {service}. Available services: echo, presence",
+                }
+            )
         )
         await websocket.close(code=4004)
         return
-    
+
     await connection_manager.connect(websocket, user_id)
     await handler.handle_connect(websocket, user_id, username)
 
@@ -94,7 +96,7 @@ async def websocket_endpoint(websocket: WebSocket, service: str, token: str):
         while True:
             data = await websocket.receive_text()
             await handler.handle_message(websocket, user_id, username, data)
-            
+
     except WebSocketDisconnect:
         connection_manager.disconnect(websocket, user_id)
         await handler.handle_disconnect(user_id, username)
@@ -103,9 +105,5 @@ async def websocket_endpoint(websocket: WebSocket, service: str, token: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=True
-    )
+
+    uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=True)

@@ -4,14 +4,12 @@ from pydantic import BaseModel
 
 
 class MessageType(str, Enum):
-    
+
     SYSTEM = "system"
     ERROR = "error"
 
-    
     ECHO = "echo"
 
-    
     ROOM_JOINED = "room_joined"
     ROOM_LEFT = "room_left"
     PRESENCE_UPDATE = "presence_update"
