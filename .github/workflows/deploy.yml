@@ -1,0 +1,59 @@
+name: Push-to-EC2
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  push_to_dockerhub:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:${{ github.sha }}
+
+
+  build_self_hosted:
+    runs-on:
+      group: EC2
+      labels: [self-hosted, deploy]
+    
+    needs: push_to_dockerhub
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Deploy application
+      run: |
+        docker stop swecc-server-ws-container || true
+        docker rm swecc-server-ws-container || true
+        
+        docker pull ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
+        
+        docker run -d --name swecc-server-ws-container \
+          --network swag-network \
+          -p 8004:8004 \
+          -e DB_HOST=${{ secrets.DB_HOST }} \
+          -e DB_NAME=${{ secrets.DB_NAME }} \
+          -e DB_PORT=${{ secrets.DB_PORT }} \
+          -e DB_USER=${{ secrets.DB_USER }} \
+          -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+          -e JWT_SECRET=${{secrets.JWT_SECRET}} \
+          --restart unless-stopped \
+          ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest

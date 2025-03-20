@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+websockets
+python-jose
+pydantic
+python-multipart
+PyJWT
