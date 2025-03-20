@@ -5,7 +5,6 @@ import argparse
 import json
 
 def generate_token(user_id, username, secret_key, expiration_minutes=5):
-    """Generate a JWT token for testing"""
     payload = {
         "user_id": user_id,
         "username": username,
@@ -36,6 +35,7 @@ if __name__ == "__main__":
     
     if args.verbose:
       print("\n=== JWT Token for Testing ===")
+      print(f"\nUsing secret: {args.secret}")
       print(f"\nToken: {token}")
       decoded = jwt.decode(token, args.secret, algorithms=["HS256"])
       print(f"\nDecoded payload: {json.dumps(decoded, indent=2)}")

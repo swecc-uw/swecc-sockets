@@ -4,4 +4,4 @@ websockets
 python-jose
 pydantic
 python-multipart
-PyJWT
+PyJWT==1.7.1

@@ -20,12 +20,14 @@ A simple FastAPI WebSocket server that uses JWT authentication to securely handl
 ### Local Development
 
 1. Clone this repository
+
    ```bash
    git clone https://github.com/your-username/fastapi-websocket-server.git
    cd fastapi-websocket-server
    ```
 
 2. Start the WebSocket server with Docker Compose
+
    ```bash
    docker-compose up
    ```
@@ -35,6 +37,7 @@ A simple FastAPI WebSocket server that uses JWT authentication to securely handl
 ### Production Deployment
 
 1. Build the Docker image
+
    ```bash
    docker build -t fastapi-websocket-server .
    ```
@@ -63,17 +66,17 @@ from django.views.decorators.csrf import csrf_protect
 def get_ws_token(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Not authenticated"}, status=401)
-    
+
     # Create a short-lived token (5 minutes)
     payload = {
         "user_id": request.user.id,
         "username": request.user.username,
         "exp": int(time.time()) + 300  # 5 minutes expiration
     }
-    
+
     # Sign with your Django SECRET_KEY
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-    
+
     return JsonResponse({"token": token})
 ```
 
@@ -106,6 +109,7 @@ To use the test client:
 ## Integrating with Django
 
 1. Add the token generation endpoint to your Django URLs:
+
    ```python
    urlpatterns = [
        # ... other URLs
@@ -114,15 +118,16 @@ To use the test client:
    ```
 
 2. Add the WebSocket server URL to your frontend JavaScript:
+
    ```javascript
    // First get the token from Django
-   fetch('/api/ws-token/')
-       .then(response => response.json())
-       .then(data => {
-           // Connect to WebSocket with the token
-           const socket = new WebSocket(`ws://your-server.com/ws/${data.token}`);
-           // Handle WebSocket events
-       });
+   fetch("/api/ws-token/")
+     .then((response) => response.json())
+     .then((data) => {
+       // Connect to WebSocket with the token
+       const socket = new WebSocket(`ws://your-server.com/ws/${data.token}`);
+       // Handle WebSocket events
+     });
    ```
 
 3. Update the CORS settings in `config.py` to include your Django server URL:
