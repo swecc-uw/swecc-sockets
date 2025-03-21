@@ -12,6 +12,7 @@ class MessageType(str, Enum):
     PRESENCE_UPDATE = "presence_update"
     ROOM_LIST = "room_list"
     ROOM_USERS = "room_users"
+    CHAT_MESSAGE = "chat_message"
 
 
 class Message(BaseModel):
