@@ -13,6 +13,7 @@ from .event_emitter import EventEmitter
 from .service_registry import ServiceRegistry
 from .handlers.echo_handler import EchoHandler
 from .handlers.presence_handler import PresenceHandler
+from .handlers.chat_handler import ChatRoomHandler  # Import the new handler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +29,7 @@ service_registry = ServiceRegistry()
 
 service_registry.register("echo", EchoHandler)
 service_registry.register("presence", PresenceHandler)
+service_registry.register("chat", ChatRoomHandler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,7 +71,7 @@ async def websocket_endpoint(websocket: WebSocket, service: str, token: str):
         await websocket.send_text(
             json.dumps({
                 "type": "error",
-                "message": f"Unknown service: {service}. Available services: echo, presence"
+                "message": f"Unknown service: {service}. Available services: echo, presence, chat"
             })
         )
         await websocket.close(code=4004)
