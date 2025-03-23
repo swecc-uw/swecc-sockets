@@ -1,4 +1,4 @@
-name: Push-to-EC2
+name: Deploy Sockets Service
 on:
   push:
     branches:
@@ -27,8 +27,7 @@ jobs:
           ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
           ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:${{ github.sha }}
 
-
-  build_self_hosted:
+  deploy_to_swarm:
     runs-on:
       group: EC2
       labels: [self-hosted, deploy]
@@ -39,21 +38,23 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v2
 
-    - name: Deploy application
+    - name: Deploy sockets service
       run: |
-        docker stop swecc-server-ws-container || true
-        docker rm swecc-server-ws-container || true
+        # Remove the existing service if it exists
+        docker service rm swecc_stack_sockets || true
         
-        docker pull ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
-        
-        docker run -d --name swecc-server-ws-container \
-          --network swag-network \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          -e DB_HOST=${{ secrets.DB_HOST }} \
-          -e DB_NAME=${{ secrets.DB_NAME }} \
-          -e DB_PORT=${{ secrets.DB_PORT }} \
-          -e DB_USER=${{ secrets.DB_USER }} \
-          -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-          -e JWT_SECRET=${{secrets.JWT_SECRET}} \
-          --restart unless-stopped \
+        # Extract environment variables from config
+        docker config inspect sockets_env --pretty | sed -n '/Data:/,$ p' | sed '1d' > env_file.txt
+
+        # Deploy the service with the env file
+        docker service create \
+          --name swecc_stack_sockets \
+          --network swecc_stack_swecc-network \
+          --env-file env_file.txt \
+          --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+          --replicas 1 \
+          --restart-condition any \
           ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
+
+        # Clean up
+        rm env_file.txt
