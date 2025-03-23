@@ -13,6 +13,10 @@ class MessageType(str, Enum):
     ROOM_LIST = "room_list"
     ROOM_USERS = "room_users"
     CHAT_MESSAGE = "chat_message"
+    LOGS_STARTED = "logs_started"
+    LOGS_STOPPED = "logs_stopped"
+    LOG_LINE = "log_line"
+    LOG_ERROR = "log_error"
 
 
 class Message(BaseModel):

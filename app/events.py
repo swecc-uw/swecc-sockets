@@ -11,6 +11,8 @@ class EventType(str, Enum):
     LIST_ROOMS = "list_rooms"
     GET_ROOM_USERS = "get_room_users"
     ECHO = "echo"
+    START_LOGS = "start_logs"
+    STOP_LOGS = "stop_logs"
 
 
 class Event:

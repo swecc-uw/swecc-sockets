@@ -14,6 +14,7 @@ from .service_registry import ServiceRegistry
 from .handlers.echo_handler import EchoHandler
 from .handlers.presence_handler import PresenceHandler
 from .handlers.chat_handler import ChatRoomHandler
+from .handlers.container_logs_handler import ContainerLogsHandler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +31,7 @@ service_registry = ServiceRegistry()
 service_registry.register("echo", EchoHandler)
 service_registry.register("presence", PresenceHandler)
 service_registry.register("chat", ChatRoomHandler)
+service_registry.register("logs", ContainerLogsHandler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,7 +73,7 @@ async def websocket_endpoint(websocket: WebSocket, service: str, token: str):
         await websocket.send_text(
             json.dumps({
                 "type": "error",
-                "message": f"Unknown service: {service}. Available services: echo, presence, chat"
+                "message": f"Unknown service: {service}. Available services: echo, presence, chat, logs"
             })
         )
         await websocket.close(code=4004)
@@ -92,6 +94,10 @@ async def websocket_endpoint(websocket: WebSocket, service: str, token: str):
             data = await websocket.receive_text()
             try:
                 message_data = json.loads(data)
+
+                if "groups" in user:
+                    message_data["groups"] = user["groups"]
+
                 message_event = Event(
                     type=EventType.MESSAGE,
                     user_id=user_id,

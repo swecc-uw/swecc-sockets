@@ -48,6 +48,7 @@ jobs:
         
         docker run -d --name swecc-server-ws-container \
           --network swag-network \
+          -v /var/run/docker.sock:/var/run/docker.sock \
           -e DB_HOST=${{ secrets.DB_HOST }} \
           -e DB_NAME=${{ secrets.DB_NAME }} \
           -e DB_PORT=${{ secrets.DB_PORT }} \

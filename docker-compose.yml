@@ -10,6 +10,7 @@ services:
       - "8004:8004"
     volumes:
       - ./app:/app/app
+      - /var/run/docker.sock:/var/run/docker.sock
 
     environment:
       - DB_HOST=db

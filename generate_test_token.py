@@ -4,11 +4,21 @@ import time
 import argparse
 import json
 
+def verify_token(token, secret_key):
+    try:
+        decoded = jwt.decode(token, secret_key, algorithms=["HS256"])
+        return decoded
+    except jwt.ExpiredSignatureError:
+        print("Token has expired")
+    except jwt.InvalidTokenError:
+        print("Invalid token")
+    return None
+
 def generate_token(user_id, username, secret_key, expiration_minutes=5):
     payload = {
         "user_id": user_id,
         "username": username,
-        "groups": ["is_authenticated"],
+        "groups": ["is_admin", "is_authenticated", "is_verified"],
         "exp": int(time.time()) + (expiration_minutes * 60)
     }
     
@@ -34,6 +44,12 @@ if __name__ == "__main__":
         args.minutes
     )
     
+    if not token:
+        print("Failed to generate token")
+
+    if not verify_token(token, args.secret):
+        print("Failed to verify token")
+
     if args.verbose:
       print("\n=== JWT Token for Testing ===")
       print(f"\nUsing secret: {args.secret}")
@@ -45,4 +61,4 @@ if __name__ == "__main__":
       print("\nUse this token in the test client or with WebSocket clients.")
       print("Example WebSocket URL: ws://localhost:8004/ws/" + token)
     else:
-      print(token)
+      print(str(token, 'utf-8'))
