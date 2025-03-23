@@ -8,6 +8,7 @@ def generate_token(user_id, username, secret_key, expiration_minutes=5):
     payload = {
         "user_id": user_id,
         "username": username,
+        "groups": ["is_authenticated"],
         "exp": int(time.time()) + (expiration_minutes * 60)
     }
     

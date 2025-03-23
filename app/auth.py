@@ -35,7 +35,7 @@ class Auth:
 
     @staticmethod
     async def authenticate_ws(
-        websocket: WebSocket, token: str, required_groups: list[str] = ["is_verified"]
+        websocket: WebSocket, token: str, required_groups: list[str] = ["is_authenticated"]
     ) -> Optional[dict]:
         user = await Auth.validate_token(token)
         if not user or not all(group in user["groups"] for group in required_groups):
