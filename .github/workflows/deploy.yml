@@ -43,15 +43,15 @@ jobs:
     - name: Deploy sockets service
       run: |
         # Remove the existing service if it exists
-        docker service rm swecc_stack_sockets || true
+        docker service rm swecc-stack-sockets || true
         
         # Extract environment variables from config
         docker config inspect sockets_env --pretty | sed -n '/Data:/,$ p' | sed '1d' > env_file.txt
 
         # Deploy the service with the env file
         docker service create \
-          --name swecc_stack_sockets \
-          --network swecc_stack_swecc-network \
+          --name swecc-stack-sockets \
+          --network swecc-stack-swecc-network \
           --env-file env_file.txt \
           --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
           --replicas 1 \
