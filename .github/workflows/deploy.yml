@@ -56,7 +56,7 @@ jobs:
           --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
           --replicas 1 \
           --restart-condition any \
-          --health-cmd "wget -q -O - http://localhost:3000/ping || exit 1" \
+          --health-cmd "wget -q -O - http://localhost:8004/ping || exit 1" \
           --health-interval 10s \
           --health-timeout 5s \
           --health-retries 3 \
