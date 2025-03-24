@@ -4,7 +4,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    # Allow manual triggering and from API
 
 jobs:
   push_to_dockerhub:
@@ -42,9 +41,8 @@ jobs:
 
     - name: Deploy sockets service
       run: |
-        # Check if service already exists
         if docker service ls | grep -q "sockets"; then
-          # Update existing service with rolling update strategy
+
           docker service update \
             --image ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest \
             --update-parallelism 1 \
@@ -57,13 +55,10 @@ jobs:
             --reserve-memory 128M \
             sockets
         else
-          # First time deployment - remove any existing service
           docker service rm sockets || true
 
-          # Extract environment variables from config
           docker config inspect sockets_env --pretty | sed -n '/Data:/,$ p' | sed '1d' > env_file.txt
 
-          # Deploy the service with the env file
           docker service create \
             --name sockets \
             --network prod_swecc-network \
@@ -84,3 +79,31 @@ jobs:
           # Clean up
           rm env_file.txt
         fi
+
+    - name: Verify deployment
+      run: |
+        echo "Verifying deployment..."
+        timeout=120
+        elapsed=0
+
+        while [ $elapsed -lt $timeout ]; do
+          if [ $(docker service ls --filter "name=sockets" --format "{{.Replicas}}") == "1/1" ]; then
+            echo "✅ Service deployed successfully"
+            exit 0
+          fi
+
+          echo "⏳ Waiting for service to be fully deployed... ($elapsed/$timeout seconds)"
+          sleep 5
+          elapsed=$((elapsed + 5))
+
+          if docker service ps sockets --filter "desired-state=running" --format "{{.Error}}" | grep -q .; then
+            echo "❌ Deployment failed with errors:"
+            docker service ps sockets
+            exit 1
+          fi
+        done
+
+        echo "❌ Deployment verification timed out after $timeout seconds"
+        echo "Current service status:"
+        docker service ps sockets --no-trunc
+        exit 1
