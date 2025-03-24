@@ -42,21 +42,37 @@ jobs:
 
     - name: Deploy sockets service
       run: |
-        # Remove the existing service if it exists
-        docker service rm sockets || true
+        # Check if service already exists
+        if docker service ls | grep -q "sockets"; then
+          # Update existing service with rolling update strategy
+          docker service update \
+            --image ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest \
+            --update-parallelism 1 \
+            --update-delay 10s \
+            --update-order start-first \
+            --update-failure-action rollback \
+            sockets
+        else
+          # First time deployment - remove any existing service
+          docker service rm sockets || true
 
-        # Extract environment variables from config
-        docker config inspect sockets_env --pretty | sed -n '/Data:/,$ p' | sed '1d' > env_file.txt
+          # Extract environment variables from config
+          docker config inspect sockets_env --pretty | sed -n '/Data:/,$ p' | sed '1d' > env_file.txt
 
-        # Deploy the service with the env file
-        docker service create \
-          --name sockets \
-          --network prod_swecc-network \
-          --env-file env_file.txt \
-          --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-          --replicas 1 \
-          --restart-condition any \
-          ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
+          # Deploy the service with the env file
+          docker service create \
+            --name sockets \
+            --network prod_swecc-network \
+            --env-file env_file.txt \
+            --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+            --replicas 1 \
+            --restart-condition any \
+            --update-parallelism 1 \
+            --update-delay 10s \
+            --update-order start-first \
+            --update-failure-action rollback \
+            ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
 
-        # Clean up
-        rm env_file.txt
+          # Clean up
+          rm env_file.txt
+        fi
