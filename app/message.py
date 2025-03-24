@@ -7,16 +7,9 @@ class MessageType(str, Enum):
     SYSTEM = "system"
     ERROR = "error"
     ECHO = "echo"
-    ROOM_JOINED = "room_joined"
-    ROOM_LEFT = "room_left"
-    PRESENCE_UPDATE = "presence_update"
-    ROOM_LIST = "room_list"
-    ROOM_USERS = "room_users"
-    CHAT_MESSAGE = "chat_message"
+    LOG_LINE = "log_line"
     LOGS_STARTED = "logs_started"
     LOGS_STOPPED = "logs_stopped"
-    LOG_LINE = "log_line"
-    LOG_ERROR = "log_error"
 
 
 class Message(BaseModel):
@@ -24,5 +17,4 @@ class Message(BaseModel):
     message: Optional[str] = None
     user_id: Optional[int] = None
     username: Optional[str] = None
-    room_id: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
