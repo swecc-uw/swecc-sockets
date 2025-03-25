@@ -1,32 +1,43 @@
-name: Deploy Sockets Service
+name: Deploy Scheduler Service
 on:
   push:
     branches:
       - main
   workflow_dispatch:
 
+env:
+  SERVICE_NAME: "sockets"
+  NETWORK: "prod_swecc-network"
+  CPU_LIMIT: "0.3"
+  MEMORY_LIMIT: "256M"
+  CPU_RESERVE: "0.1"
+  MEMORY_RESERVE: "128M"
+  IMAGE: "swecc-sockets"
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  CONFIG_NAME: "sockets_env"
+
 jobs:
   push_to_dockerhub:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v2
 
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v1
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:${{ github.sha }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:${{ github.sha }}
 
   deploy_to_swarm:
     runs-on:
@@ -36,74 +47,86 @@ jobs:
     needs: push_to_dockerhub
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v2
 
-    - name: Deploy sockets service
-      run: |
-        if docker service ls | grep -q "sockets"; then
+      - name: Login to Docker Hub on deployment server
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-          docker service update \
-            --image ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest \
-            --update-parallelism 1 \
-            --update-delay 10s \
-            --update-order start-first \
-            --update-failure-action rollback \
-            --limit-cpu 0.5 \
-            --limit-memory 512M \
-            --reserve-cpu 0.1 \
-            --reserve-memory 128M \
-            sockets
-        else
-          docker service rm sockets || true
+      - name: Pull latest image
+        run: |
+          docker pull ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
 
-          docker config inspect sockets_env --pretty | sed -n '/Data:/,$ p' | sed '1d' > env_file.txt
+      - name: Prepare environment file
+        run: |
+          echo "Parsing environment variables..."
+          docker config inspect ${{ env.CONFIG }} --pretty | sed -n '/Data:/,$ p' | sed '1d' > env_file.txt || echo "No config found"
 
+      - name: Check for existing service
+        id: check_service
+        run: |
+          if docker service ls | grep -q "${{ env.SERVICE_NAME }}"; then
+            echo "existing_service=true" >> $GITHUB_OUTPUT
+          else
+            echo "existing_service=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create staging service for zero-downtime deployment
+        id: create_staging
+        if: steps.check_service.outputs.existing_service == 'true'
+        run: |
+          STAGING_NAME="${{ env.SERVICE_NAME }}-staging"
+
+          echo "Creating temporary service: $STAGING_NAME"
           docker service create \
-            --name sockets \
-            --network prod_swecc-network \
+            --name "$STAGING_NAME" \
+            --network ${{ env.NETWORK }} \
             --env-file env_file.txt \
-            --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+            --replicas 1 \
+            --restart-condition any \
+            --limit-cpu ${{ env.CPU_LIMIT }} \
+            --limit-memory ${{ env.MEMORY_LIMIT }} \
+            --reserve-cpu ${{ env.CPU_RESERVE }} \
+            --reserve-memory ${{ env.MEMORY_RESERVE }} \
+            --with-registry-auth \
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
+
+          echo "New service is healthy - promoting staging service to production"
+          docker service update \
+            --update-parallelism 1 \
+            --hostname ${{ env.SERVICE_NAME }} \
+            $STAGING_NAME
+
+          echo "Removing old service"
+          docker service rm ${{ env.SERVICE_NAME }}
+
+          echo "staging_success=true" >> $GITHUB_OUTPUT
+
+      - name: Create new service
+        if: steps.check_service.outputs.existing_service == 'false' || steps.create_staging.outputs.staging_success == 'true'
+        run: |
+          echo "Creating new prod service for ${{ env.SERVICE_NAME }}"
+          docker service create \
+            --name ${{ env.SERVICE_NAME }} \
+            --network ${{ env.NETWORK }} \
+            --env-file env_file.txt \
             --replicas 1 \
             --restart-condition any \
             --update-parallelism 1 \
-            --update-delay 10s \
+            --update-delay 30s \
             --update-order start-first \
-            --update-failure-action rollback \
-            --limit-cpu 0.5 \
-            --limit-memory 512M \
-            --reserve-cpu 0.1 \
-            --reserve-memory 128M \
-            ${{ secrets.DOCKERHUB_USERNAME }}/swecc-sockets:latest
+            --update-failure-action continue \
+            --limit-cpu ${{ env.CPU_LIMIT }} \
+            --limit-memory ${{ env.MEMORY_LIMIT }} \
+            --reserve-cpu ${{ env.CPU_RESERVE }} \
+            --reserve-memory ${{ env.MEMORY_RESERVE }} \
+            --with-registry-auth \
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
 
-          # Clean up
-          rm env_file.txt
-        fi
-
-    - name: Verify deployment
-      run: |
-        echo "Verifying deployment..."
-        timeout=120
-        elapsed=0
-
-        while [ $elapsed -lt $timeout ]; do
-          if [ $(docker service ls --filter "name=sockets" --format "{{.Replicas}}") == "1/1" ]; then
-            echo "✅ Service deployed successfully"
-            exit 0
-          fi
-
-          echo "⏳ Waiting for service to be fully deployed... ($elapsed/$timeout seconds)"
-          sleep 5
-          elapsed=$((elapsed + 5))
-
-          if docker service ps sockets --filter "desired-state=running" --format "{{.Error}}" | grep -q .; then
-            echo "❌ Deployment failed with errors:"
-            docker service ps sockets
-            exit 1
-          fi
-        done
-
-        echo "❌ Deployment verification timed out after $timeout seconds"
-        echo "Current service status:"
-        docker service ps sockets --no-trunc
-        exit 1
+      - name: Cleanup
+        run: |
+          docker service rm ${{ env.SERVICE_NAME }}-staging || true
+          rm env_file.txt || true
