@@ -84,6 +84,7 @@ jobs:
           docker service create \
             --name "$STAGING_NAME" \
             --network ${{ env.NETWORK }} \
+            --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
             --env-file env_file.txt \
             --replicas 1 \
             --restart-condition any \
@@ -112,6 +113,7 @@ jobs:
           docker service create \
             --name ${{ env.SERVICE_NAME }} \
             --network ${{ env.NETWORK }} \
+            --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
             --env-file env_file.txt \
             --replicas 1 \
             --restart-condition any \
