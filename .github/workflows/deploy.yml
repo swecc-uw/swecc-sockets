@@ -6,15 +6,16 @@ on:
   workflow_dispatch:
 
 env:
-  SERVICE_NAME: "sockets"
-  NETWORK: "prod_swecc-network"
-  CPU_LIMIT: "0.3"
-  MEMORY_LIMIT: "256M"
-  CPU_RESERVE: "0.1"
-  MEMORY_RESERVE: "128M"
-  IMAGE: "swecc-sockets"
+  SERVICE_NAME: 'sockets'
+  NETWORK: 'prod_swecc-network'
+  CPU_LIMIT: '0.3'
+  MEMORY_LIMIT: '256M'
+  CPU_RESERVE: '0.1'
+  MEMORY_RESERVE: '128M'
+  IMAGE: 'swecc-sockets'
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  CONFIG_NAME: "sockets_env"
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  CONFIG_NAME: 'sockets_env'
 
 jobs:
   push_to_dockerhub:
@@ -27,8 +28,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v1
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
@@ -36,8 +37,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
+            ${{ emv.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:${{ github.sha }}
 
   deploy_to_swarm:
     runs-on:
@@ -53,8 +54,8 @@ jobs:
       - name: Login to Docker Hub on deployment server
         uses: docker/login-action@v1
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       - name: Pull latest image
         run: |
