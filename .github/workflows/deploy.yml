@@ -38,7 +38,7 @@ jobs:
           push: true
           tags: |
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
-            ${{ emv.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:${{ github.sha }}
 
   deploy_to_swarm:
     runs-on:
