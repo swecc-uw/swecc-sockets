@@ -40,7 +40,7 @@ if static_path.exists():
 
 @app.on_event("startup")
 async def startup_event():
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     loop.create_task(initialize_rabbitmq(loop))
 
 
