@@ -108,17 +108,7 @@ class RabbitMQManager:
 
         for name, config in self.callbacks.items():
 
-            if config["needs_context"] and self.client and self.bot_context:
-                original_callback = config["callback"]
-
-                async def context_callback(body, properties):
-                    return await original_callback(
-                        body, properties, self.client, self.bot_context
-                    )
-
-                callback = context_callback
-            else:
-                callback = config["callback"]
+            callback = config["callback"]
 
             self.add_consumer(
                 name=name,
