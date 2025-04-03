@@ -66,8 +66,8 @@ class ConnectionManager:
         self._connected = False
 
     def _build_amqp_url(self) -> str:
-        user = os.getenv("BOT_RABBIT_USER", "guest")
-        password = os.getenv("BOT_RABBIT_PASS", "guest")
+        user = os.getenv("SOCKET_RABBIT_USER", "guest")
+        password = os.getenv("SOCKET_RABBIT_PASS", "guest")
         host = os.getenv("RABBIT_HOST", "localhost")
         port = os.getenv("RABBIT_PORT", "5672")
         vhost = os.getenv("RABBIT_VHOST", "/")
