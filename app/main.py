@@ -7,6 +7,7 @@ from pathlib import Path
 import asyncio
 
 from .mq import initialize_rabbitmq
+from .mq.consumers import *
 from .config import settings
 from .auth import Auth
 from .events import Event, EventType
