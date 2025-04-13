@@ -1,8 +1,5 @@
 import asyncio
 import logging
-import pika
-from pika.adapters.asyncio_connection import AsyncioConnection
-from typing import Any, Dict, Optional, Union
 from .connection_manager import ConnectionManager
 
 LOGGER = logging.getLogger(__name__)

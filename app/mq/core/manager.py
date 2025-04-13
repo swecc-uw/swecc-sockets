@@ -1,10 +1,7 @@
-import os
-import urllib.parse
 import asyncio
 import logging
-from typing import Dict, List, Optional, Callable, Any, Coroutine
+from typing import Dict, Optional, Callable, Any, Coroutine
 
-import pika
 from pika.exchange_type import ExchangeType
 
 from .consumer import AsyncRabbitConsumer
@@ -19,19 +16,9 @@ class RabbitMQManager:
     def __init__(self):
         self.consumers: Dict[str, AsyncRabbitConsumer] = {}
         self.producers: Dict[str, AsyncRabbitProducer] = {}
-        self.default_amqp_url = self._build_amqp_url()
         self.callbacks: Dict[str, Dict[str, Any]] = {}
 
         self.producer_factories: Dict[str, Callable] = {}
-
-    def _build_amqp_url(self) -> str:
-        user = os.getenv("BOT_RABBIT_USER", "guest")
-        password = os.getenv("BOT_RABBIT_PASS", "guest")
-        host = os.getenv("RABBIT_HOST", "rabbitmq-host")
-        port = os.getenv("RABBIT_PORT", "5672")
-        vhost = os.getenv("RABBIT_VHOST", "/")
-        vhost = urllib.parse.quote(vhost, safe="")
-        return f"amqp://{user}:{password}@{host}:{port}/{vhost}"
 
     def register_callback(
         self,
