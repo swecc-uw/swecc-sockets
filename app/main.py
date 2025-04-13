@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import asyncio
 
-from .mq import initialize_rabbitmq
+from .mq import initialize_rabbitmq, shutdown_rabbitmq
 from .mq.consumers import *
 from .config import settings
 from .auth import Auth
@@ -15,6 +15,7 @@ from .connection_manager import ConnectionManager
 from .event_emitter import EventEmitter
 from .handlers.echo_handler import EchoHandler
 from .handlers.logs_handler import ContainerLogsHandler
+from contextlib import asynccontextmanager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,7 +23,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="SWECC Sockets")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize RabbitMQ connection
+    await initialize_rabbitmq(asyncio.get_event_loop())
+    yield
+    # Cleanup RabbitMQ connection if needed
+    await shutdown_rabbitmq()
+
+
+app = FastAPI(title="SWECC Sockets", lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
@@ -37,12 +48,6 @@ app.add_middleware(
 static_path = Path(__file__).parent.parent / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=static_path), name="static")
-
-
-@app.on_event("startup")
-async def startup_event():
-    loop = asyncio.get_running_loop()
-    loop.create_task(initialize_rabbitmq(loop))
 
 
 # Basic endpoints
