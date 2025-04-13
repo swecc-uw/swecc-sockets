@@ -1,10 +1,7 @@
-import os
-import urllib.parse
 import asyncio
 import logging
-from typing import Dict, List, Optional, Callable, Any, Coroutine
+from typing import Dict, Optional, Callable, Any, Coroutine
 
-import pika
 from pika.exchange_type import ExchangeType
 
 from .consumer import AsyncRabbitConsumer
