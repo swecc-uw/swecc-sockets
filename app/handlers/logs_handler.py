@@ -2,7 +2,6 @@ import json
 import logging
 import asyncio
 import docker
-from typing import Dict
 from ..events import Event, EventType
 from ..message import Message, MessageType
 

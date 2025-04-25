@@ -16,6 +16,12 @@ from .event_emitter import EventEmitter
 from .handlers.echo_handler import EchoHandler
 from .handlers.logs_handler import ContainerLogsHandler
 from contextlib import asynccontextmanager
+from .handlers import HandlerKind
+
+EVENT_EMITTERS: dict[HandlerKind, EventEmitter] = {
+    HandlerKind.Echo: EventEmitter(),
+    HandlerKind.Logs: EventEmitter(),
+}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,6 +29,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+async def authenticate_and_connect(
+    kind: HandlerKind, websocket: WebSocket, token: str
+) -> dict:
+    user = await Auth.authenticate_ws(websocket, token)
+    if not user:
+        logger.warning("Authentication failed for WebSocket connection")
+        return None
+
+    user_id = user["user_id"]
+    username = user["username"]
+
+    connection_manager = ConnectionManager()
+    await connection_manager.register_connection(kind, user_id, websocket)
+
+    connection_event = Event(
+        type=EventType.CONNECTION,
+        user_id=user_id,
+        username=username,
+        websocket=websocket,
+    )
+    await EVENT_EMITTERS[kind].emit(connection_event)
+
+    return user
+
+async def cleanup_websocket(kind: HandlerKind, user: dict):
+    connection_manager = ConnectionManager()
+    event_emitter = EVENT_EMITTERS[kind]
+    try:
+        connection_manager.disconnect(HandlerKind.Echo, user["user_id"])
+        disconnect_event = Event(
+            type=EventType.DISCONNECT,
+            user_id=user["user_id"],
+            username=user["username"],
+        )
+        await event_emitter.emit(disconnect_event)
+        logger.info(
+            f"Echo client disconnected: {user['username']} (ID: {user['user_id']})"
+        )
+    except Exception as e:
+        logger.error(f"Error during WebSocket cleanup: {str(e)}", exc_info=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,32 +112,15 @@ async def ping():
 async def echo_endpoint(websocket: WebSocket, token: str):
     # Create endpoint-specific instances
     connection_manager = ConnectionManager()
-    event_emitter = EventEmitter()
+    event_emitter = EVENT_EMITTERS[HandlerKind.Echo]
     echo_handler = EchoHandler(event_emitter)
 
     user = None
 
     try:
-        # Authenticate
-        user = await Auth.authenticate_ws(websocket, token)
-        if not user:
-            logger.warning("Authentication failed for WebSocket connection")
-            return
-
+        user = await authenticate_and_connect(HandlerKind.Echo, websocket, token)
         user_id = user["user_id"]
         username = user["username"]
-
-        # Connect and notify
-        await connection_manager.connect(websocket, user_id)
-
-        connection_event = Event(
-            type=EventType.CONNECTION,
-            user_id=user_id,
-            username=username,
-            websocket=websocket,
-        )
-        await event_emitter.emit(connection_event)
-
         # Message loop
         while True:
             try:
@@ -120,26 +149,13 @@ async def echo_endpoint(websocket: WebSocket, token: str):
                     f"Error handling WebSocket message: {str(e)}", exc_info=True
                 )
                 break
-
     except WebSocketDisconnect:
         pass
     except Exception as e:
         logger.error(f"Error handling WebSocket connection: {str(e)}", exc_info=True)
     finally:
         if user:
-            try:
-                connection_manager.disconnect(websocket, user["user_id"])
-                disconnect_event = Event(
-                    type=EventType.DISCONNECT,
-                    user_id=user["user_id"],
-                    username=user["username"],
-                )
-                await event_emitter.emit(disconnect_event)
-                logger.info(
-                    f"Echo client disconnected: {user['username']} (ID: {user['user_id']})"
-                )
-            except Exception as e:
-                logger.error(f"Error during WebSocket cleanup: {str(e)}", exc_info=True)
+            await cleanup_websocket(HandlerKind.Echo, user)
 
 
 # Logs endpoint
@@ -147,35 +163,16 @@ async def echo_endpoint(websocket: WebSocket, token: str):
 async def logs_endpoint(websocket: WebSocket, token: str):
     # Create endpoint-specific instances
     connection_manager = ConnectionManager()
-    event_emitter = EventEmitter()
+    event_emitter = EVENT_EMITTERS[HandlerKind.Logs]
     logs_handler = ContainerLogsHandler(event_emitter)
 
     user = None
 
     try:
         # Authenticate and check for admin rights
-        user = await Auth.authenticate_ws(
-            websocket, token, required_groups=["is_admin", "is_api_key"]
-        )
-        if not user:
-            logger.warning("Authentication failed for logs WebSocket connection")
-            return
-
+        user = await authenticate_and_connect(HandlerKind.Logs, websocket, token)
         user_id = user["user_id"]
         username = user["username"]
-
-        # Connect and notify
-        await connection_manager.connect(websocket, user_id)
-
-        connection_event = Event(
-            type=EventType.CONNECTION,
-            user_id=user_id,
-            username=username,
-            data={"groups": user.get("groups", [])},
-            websocket=websocket,
-        )
-        await event_emitter.emit(connection_event)
-
         # Message loop
         while True:
             try:
@@ -212,19 +209,7 @@ async def logs_endpoint(websocket: WebSocket, token: str):
         logger.error(f"Error handling WebSocket connection: {str(e)}", exc_info=True)
     finally:
         if user:
-            try:
-                connection_manager.disconnect(websocket, user["user_id"])
-                disconnect_event = Event(
-                    type=EventType.DISCONNECT,
-                    user_id=user["user_id"],
-                    username=user["username"],
-                )
-                await event_emitter.emit(disconnect_event)
-                logger.info(
-                    f"Logs client disconnected: {user['username']} (ID: {user['user_id']})"
-                )
-            except Exception as e:
-                logger.error(f"Error during WebSocket cleanup: {str(e)}", exc_info=True)
+            cleanup_websocket(HandlerKind.Logs, user)
 
 
 if __name__ == "__main__":
