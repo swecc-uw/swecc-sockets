@@ -209,7 +209,7 @@ async def logs_endpoint(websocket: WebSocket, token: str):
         logger.error(f"Error handling WebSocket connection: {str(e)}", exc_info=True)
     finally:
         if user:
-            cleanup_websocket(HandlerKind.Logs, user)
+            await cleanup_websocket(HandlerKind.Logs, user)
 
 
 if __name__ == "__main__":
