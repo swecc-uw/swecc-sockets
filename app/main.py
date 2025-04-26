@@ -43,7 +43,6 @@ async def authenticate_and_connect(
     username = user["username"]
 
     connection_manager = ConnectionManager()
-    print(id(connection_manager))
     await connection_manager.register_connection(kind, user_id, websocket)
 
     connection_event = Event(

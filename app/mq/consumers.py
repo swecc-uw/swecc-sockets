@@ -32,7 +32,6 @@ async def reviewed_resume_consumer(body, properties):
     user_id, resume_id, file_name = key.split("-")
 
     ws_connection_manager = ConnectionManager()
-    print(id(ws_connection_manager))
     websocket = ws_connection_manager.get_websocket_connection(HandlerKind.Resume, int(user_id))
 
     if websocket is None:

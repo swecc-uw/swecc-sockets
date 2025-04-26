@@ -2,6 +2,7 @@ from fastapi import WebSocket
 from typing import Dict, Set
 import logging
 from .handlers import HandlerKind
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class ConnectionManager:
 
         logger.info(f"User {user_id} connected for handler {kind}. Total connections: {len(self.ws_connections)}")
 
-    def get_websocket_connection(self, kind: HandlerKind, user_id: int) -> WebSocket:
+    def get_websocket_connection(self, kind: HandlerKind, user_id: int) -> Optional[WebSocket]:
         websocket = self.user_connections.get((kind, user_id))
 
         if not websocket:
