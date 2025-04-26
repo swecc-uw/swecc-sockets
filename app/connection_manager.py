@@ -35,6 +35,19 @@ class ConnectionManager:
 
         logger.info(f"User {user_id} connected for handler {kind}. Total connections: {len(self.ws_connections)}")
 
+    async def get_websocket_connection(self, kind: HandlerKind, user_id: int) -> WebSocket:
+        websocket = self.user_connections.get((kind, user_id))
+
+        if not websocket:
+            logger.warning(f"No active connection found for user {user_id} and handler {kind}.")
+            return None
+
+        if self.is_connection_closing(websocket):
+            logger.warning(f"Connection for user {user_id} is closing.")
+            return None
+
+        return websocket
+
     def disconnect(self, kind: HandlerKind, user_id: int) -> None:
         websocket = self.user_connections.get((kind, user_id))
 
