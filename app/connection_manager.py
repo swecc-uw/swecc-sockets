@@ -1,46 +1,63 @@
 from fastapi import WebSocket
 from typing import Dict, Set
 import logging
+from .handlers import HandlerKind
 
 logger = logging.getLogger(__name__)
 
 class ConnectionManager:
+
+    __instance = None
+
     def __init__(self):
-        self.active_connections = {}
-        self.user_connections = {}
-        self.closing_connections = set()
-
-    async def connect(self, websocket: WebSocket, user_id: int) -> None:
-        await websocket.accept()
-
-        connection_id = id(websocket)
-        self.active_connections[connection_id] = websocket
-
-        if user_id not in self.user_connections:
-            self.user_connections[user_id] = set()
-        self.user_connections[user_id].add(connection_id)
-
-        logger.info(f"User {user_id} connected. Total connections: {len(self.active_connections)}")
-
-    def disconnect(self, websocket: WebSocket, user_id: int) -> None:
-        connection_id = id(websocket)
-
-        # Mark as closing first to prevent further sends
-        self.closing_connections.add(connection_id)
-
-        # Remove from active connections
-        if connection_id in self.active_connections:
-            del self.active_connections[connection_id]
-
-        if user_id in self.user_connections:
-            self.user_connections[user_id].discard(connection_id)
-            if not self.user_connections[user_id]:
-                del self.user_connections[user_id]
-
-        logger.info(f"User {user_id} disconnected. Total connections: {len(self.active_connections)}")
+        if not self.initialized:
+            self.closing_connections = set()
+            self.user_connections: dict[(HandlerKind, int), WebSocket] = {}
+            self.ws_connections: dict[int, WebSocket] = {}
+            self.initialized = True
 
     def is_connection_closing(self, websocket: WebSocket) -> bool:
         return id(websocket) in self.closing_connections
 
     def get_active_user_ids(self) -> Set[int]:
-        return set(self.user_connections.keys())
+        return set(map(lambda x: x[1], self.user_connections.keys()))
+    
+    async def register_connection(self, kind: HandlerKind, user_id: int, websocket: WebSocket) -> None:
+        if (kind, user_id) in self.user_connections:
+            logger.warning(f"User {user_id} already connected for handler {kind}.")
+            return
+        
+        await websocket.accept()
+
+        connection_id = id(websocket)
+        self.user_connections[(kind, user_id)] = websocket
+        self.ws_connections[connection_id] = websocket
+
+        logger.info(f"User {user_id} connected for handler {kind}. Total connections: {len(self.ws_connections)}")
+
+    def disconnect(self, kind: HandlerKind, user_id: int) -> None:
+        websocket = self.user_connections.get((kind, user_id))
+
+        if not websocket:
+            logger.warning(f"No active connection found for user {user_id} and handler {kind}.")
+            return
+
+        connection_id = id(websocket)
+
+        self.closing_connections.add(connection_id)
+
+        # Remove from current connection pool
+        if connection_id in self.ws_connections:
+            del self.ws_connections[connection_id]
+
+        if (kind, user_id) in self.user_connections:
+            del self.user_connections[(kind, user_id)]
+
+        logger.info(f"WebSocket disconnected. Total connections: {len(self.ws_connections)}")
+
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.__instance = super(ConnectionManager, cls).__new__(cls)
+            cls.__instance.initialized = False
+        return cls.__instance
+        
