@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class ConnectionManager:
 
-    __instance = None
+    instance = None
 
     def __init__(self):
         if not self.initialized:
@@ -35,7 +35,7 @@ class ConnectionManager:
 
         logger.info(f"User {user_id} connected for handler {kind}. Total connections: {len(self.ws_connections)}")
 
-    async def get_websocket_connection(self, kind: HandlerKind, user_id: int) -> WebSocket:
+    def get_websocket_connection(self, kind: HandlerKind, user_id: int) -> WebSocket:
         websocket = self.user_connections.get((kind, user_id))
 
         if not websocket:
@@ -69,8 +69,8 @@ class ConnectionManager:
         logger.info(f"WebSocket disconnected. Total connections: {len(self.ws_connections)}")
 
     def __new__(cls):
-        if not hasattr(cls, 'instance'):
-            cls.__instance = super(ConnectionManager, cls).__new__(cls)
-            cls.__instance.initialized = False
-        return cls.__instance
+        if cls.instance is None:
+            cls.instance = super(ConnectionManager, cls).__new__(cls)
+            cls.instance.initialized = False
+        return cls.instance
         

@@ -1,16 +1,16 @@
-import mq
 import logging
 import json
 from ..connection_manager import ConnectionManager
 from ..handlers import HandlerKind
 from ..message import Message, MessageType
+from . import consumer
 
 logger = logging.getLogger(__name__)
 
 # Declare consumers here
 
-@mq.consumer(queue="sockets.reviewed-resume", exchange="ai", routing_key="reviewed")
-async def reviewed_resume_consumer(ch, method, properties, body):
+@consumer(queue="sockets.reviewed-resume", exchange="ai", routing_key="reviewed")
+async def reviewed_resume_consumer(body, properties):
     """
     Consumer for the reviewed resume queue.
     """
@@ -32,6 +32,7 @@ async def reviewed_resume_consumer(ch, method, properties, body):
     user_id, resume_id, file_name = key.split("-")
 
     ws_connection_manager = ConnectionManager()
+    print(id(ws_connection_manager))
     websocket = ws_connection_manager.get_websocket_connection(HandlerKind.Resume, int(user_id))
 
     if websocket is None:
