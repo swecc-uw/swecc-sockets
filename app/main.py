@@ -17,6 +17,7 @@ from .handlers.echo_handler import EchoHandler
 from .handlers.logs_handler import ContainerLogsHandler
 from contextlib import asynccontextmanager
 from .handlers import HandlerKind
+from .handlers.resume_handler import ResumeHandler
 
 EVENT_EMITTERS: dict[HandlerKind, EventEmitter] = {
     HandlerKind.Echo: EventEmitter(),
@@ -211,6 +212,45 @@ async def logs_endpoint(websocket: WebSocket, token: str):
         if user:
             await cleanup_websocket(HandlerKind.Logs, user)
 
+@app.websocket("/ws/resume/{token}")
+async def resume_endpoint(websocket: WebSocket, token: str):
+    event_emitter = EVENT_EMITTERS[HandlerKind.Resume]
+    # Unused, but necessary so events are subscribed to
+    resume_handler = ResumeHandler(event_emitter)
+
+    user = None
+
+    try:
+        user = await authenticate_and_connect(HandlerKind.Resume, websocket, token)
+        user_id = user["user_id"]
+        username = user["username"]
+        # Message loop
+        while True:
+            try:
+                # Dummy event loop to keep the connection alive
+                data = await websocket.receive_text()
+                message_event = Event(
+                    type=EventType.MESSAGE,
+                    user_id=user_id,
+                    username=username,
+                    data={"data": data},
+                    websocket=websocket,
+                )
+                await event_emitter.emit(message_event)
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(
+                    f"Error handling WebSocket message: {str(e)}", exc_info=True
+                )
+                break
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.error(f"Error handling WebSocket connection: {str(e)}", exc_info=True)
+    finally:
+        if user:
+            await cleanup_websocket(HandlerKind.Resume, user)
 
 if __name__ == "__main__":
     import uvicorn

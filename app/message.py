@@ -10,6 +10,7 @@ class MessageType(str, Enum):
     LOG_LINE = "log_line"
     LOGS_STARTED = "logs_started"
     LOGS_STOPPED = "logs_stopped"
+    RESUME_REVIEWED = "resume_reviewed"
 
 
 class Message(BaseModel):
