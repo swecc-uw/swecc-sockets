@@ -1,38 +1,17 @@
-import json
-import logging
 import asyncio
 import docker
-from ..events import Event, EventType
+from ..events import Event
 from ..message import Message, MessageType
+from .base_handler import BaseHandler
 
-logger = logging.getLogger(__name__)
 
 
-class ContainerLogsHandler:
+class ContainerLogsHandler(BaseHandler):
     def __init__(self, event_emitter):
-        self.event_emitter = event_emitter
+        super().__init__(event_emitter, "Logs")
         self.running_streams = {}
-
         # Initialize Docker client
         self.docker_client = docker.from_env()
-
-        # Register event listeners
-        self.event_emitter.on(EventType.CONNECTION, self.handle_connect)
-        self.event_emitter.on(EventType.MESSAGE, self.handle_message)
-        self.event_emitter.on(EventType.DISCONNECT, self.handle_disconnect)
-
-    async def handle_connect(self, event: Event) -> None:
-        try:
-            message = Message(
-                type=MessageType.SYSTEM,
-                message=f"Logs service: Connected as {event.username}",
-            )
-            await self.safe_send(event.websocket, message.dict())
-            logger.info(
-                f"Logs service: User {event.username} (ID: {event.user_id}) connected"
-            )
-        except Exception as e:
-            logger.error(f"Error in handle_connect: {str(e)}", exc_info=True)
 
     async def handle_message(self, event: Event) -> None:
         try:
@@ -62,22 +41,12 @@ class ContainerLogsHandler:
                 await self.safe_send(event.websocket, error_msg.dict())
 
         except Exception as e:
-            logger.error(f"Error processing logs message: {str(e)}", exc_info=True)
+            self.logger.error(f"Error processing logs message: {str(e)}", exc_info=True)
             error_msg = Message(
                 type=MessageType.ERROR,
                 message=f"Error processing your message: {str(e)}",
             )
             await self.safe_send(event.websocket, error_msg.dict())
-
-    async def handle_disconnect(self, event: Event) -> None:
-        try:
-            user_id = event.user_id
-            await self._stop_logs(user_id)
-            logger.info(
-                f"Logs service: User {event.username} (ID: {user_id}) disconnected"
-            )
-        except Exception as e:
-            logger.error(f"Error in handle_disconnect: {str(e)}", exc_info=True)
 
     async def _start_logs(self, user_id: int, container_name: str, websocket) -> None:
         # First stop any existing log streams
@@ -117,12 +86,12 @@ class ContainerLogsHandler:
             )
             await self.safe_send(websocket, message.dict())
 
-            logger.info(
+            self.logger.info(
                 f"Started log streaming for container {container_name} for user {user_id}"
             )
 
         except Exception as e:
-            logger.error(f"Error starting logs: {str(e)}", exc_info=True)
+            self.logger.error(f"Error starting logs: {str(e)}", exc_info=True)
             error_msg = Message(
                 type=MessageType.ERROR, message=f"Error starting logs: {str(e)}"
             )
@@ -143,7 +112,7 @@ class ContainerLogsHandler:
 
             # Remove from tracking
             del self.running_streams[user_id]
-            logger.info(f"Stopped log streaming for user {user_id}")
+            self.logger.info(f"Stopped log streaming for user {user_id}")
 
     async def _stream_logs(self, user_id: int, container, websocket) -> None:
         try:
@@ -161,13 +130,13 @@ class ContainerLogsHandler:
                     )
                     await self.safe_send(websocket, log_message.dict())
                 except Exception as e:
-                    logger.error(f"Error sending log line: {str(e)}")
+                    self.logger.error(f"Error sending log line: {str(e)}")
                     break
 
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            logger.error(f"Error in log streaming: {str(e)}", exc_info=True)
+            self.logger.error(f"Error in log streaming: {str(e)}", exc_info=True)
             try:
                 error_msg = Message(
                     type=MessageType.ERROR, message=f"Error in log streaming: {str(e)}"
@@ -202,11 +171,3 @@ class ContainerLogsHandler:
 
         if line_buffer:
             yield line_buffer
-
-    async def safe_send(self, websocket, data):
-        """Safely send a message, handling potential disconnection gracefully"""
-        try:
-            await websocket.send_text(json.dumps(data))
-        except Exception as e:
-            # Just log the error
-            logger.debug(f"Could not send message, websocket may be closed: {str(e)}")

@@ -116,16 +116,12 @@ class RabbitMQManager:
         queue: str,
         routing_key: str,
         exchange_type: ExchangeType = ExchangeType.topic,
-        amqp_url: Optional[str] = None,
         prefetch_count: int = 1,
     ) -> AsyncRabbitConsumer:
         if name in self.consumers:
             raise ValueError(f"Consumer with name '{name}' already exists")
 
-        url = amqp_url or self.default_amqp_url
-
         consumer = AsyncRabbitConsumer(
-            amqp_url=url,
             exchange=exchange,
             exchange_type=exchange_type,
             queue=queue,

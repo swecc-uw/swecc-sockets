@@ -2,12 +2,13 @@ from fastapi import WebSocket
 from typing import Dict, Set
 import logging
 from .handlers import HandlerKind
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 class ConnectionManager:
 
-    __instance = None
+    instance = None
 
     def __init__(self):
         if not self.initialized:
@@ -35,6 +36,19 @@ class ConnectionManager:
 
         logger.info(f"User {user_id} connected for handler {kind}. Total connections: {len(self.ws_connections)}")
 
+    def get_websocket_connection(self, kind: HandlerKind, user_id: int) -> Optional[WebSocket]:
+        websocket = self.user_connections.get((kind, user_id))
+
+        if not websocket:
+            logger.warning(f"No active connection found for user {user_id} and handler {kind}.")
+            return None
+
+        if self.is_connection_closing(websocket):
+            logger.warning(f"Connection for user {user_id} is closing.")
+            return None
+
+        return websocket
+
     def disconnect(self, kind: HandlerKind, user_id: int) -> None:
         websocket = self.user_connections.get((kind, user_id))
 
@@ -56,8 +70,8 @@ class ConnectionManager:
         logger.info(f"WebSocket disconnected. Total connections: {len(self.ws_connections)}")
 
     def __new__(cls):
-        if not hasattr(cls, 'instance'):
-            cls.__instance = super(ConnectionManager, cls).__new__(cls)
-            cls.__instance.initialized = False
-        return cls.__instance
+        if cls.instance is None:
+            cls.instance = super(ConnectionManager, cls).__new__(cls)
+            cls.instance.initialized = False
+        return cls.instance
         

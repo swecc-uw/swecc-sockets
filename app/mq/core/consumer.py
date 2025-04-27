@@ -12,7 +12,6 @@ LOGGER = logging.getLogger(__name__)
 class AsyncRabbitConsumer:
     def __init__(
         self,
-        amqp_url: str,
         exchange: str,
         exchange_type: ExchangeType,
         declare_exchange: bool,
@@ -22,7 +21,6 @@ class AsyncRabbitConsumer:
         prefetch_count: int = 1,
     ):
         # queue config
-        self._url = amqp_url
         self._exchange = exchange
         self._exchange_type = exchange_type
         self._queue = queue
@@ -38,10 +36,6 @@ class AsyncRabbitConsumer:
         self._consumer_tag = None
 
     async def connect(self, loop=None):
-        LOGGER.info(
-            f"Connecting to {self._url} for exchange {self._exchange}, queue {self._queue}"
-        )
-
         try:
             self._connection = await ConnectionManager(loop=loop).connect()
         except Exception as e:
