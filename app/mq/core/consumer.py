@@ -1,7 +1,9 @@
 import asyncio
 import logging
 import functools
-from typing import Callable, Any, Coroutine
+from typing import Callable, Any, Coroutine, Optional
+import pydantic
+import json
 
 from pika.exchange_type import ExchangeType
 from .connection_manager import ConnectionManager
@@ -19,6 +21,7 @@ class AsyncRabbitConsumer:
         routing_key: str,
         callback: Callable[[bytes, Any], Coroutine],
         prefetch_count: int = 1,
+        schema: Optional[pydantic.BaseModel] = None,
     ):
         # queue config
         self._exchange = exchange
@@ -28,6 +31,7 @@ class AsyncRabbitConsumer:
         self.message_callback = callback
         self._prefetch_count = prefetch_count
         self._declare_exchange = declare_exchange
+        self.schema = schema
 
         # connection state
         self._connection = None
@@ -142,7 +146,7 @@ class AsyncRabbitConsumer:
 
         if self.message_callback:
             # process in event loop
-            asyncio.create_task(self.message_callback(body, properties))
+            asyncio.create_task(self.process_message(body, properties))
 
     def stop_consuming(self):
         if self._channel:
@@ -161,6 +165,18 @@ class AsyncRabbitConsumer:
         else:
             LOGGER.warning(f"Channel is already closed for {self._queue}")
 
+    async def process_message(self, body, properties):
+        if self.schema:
+            try:
+                body = json.loads(body)
+                body = self.schema(**body)
+                await self.message_callback(body, properties)
+            except Exception as e:
+                LOGGER.error(f"Error: {e}")
+                LOGGER.error(f"Failed to parse schema for {self._queue}")
+        else:
+            await self.message_callback(body, properties)
+        
     async def shutdown(self):
         LOGGER.info(f"Shutting down consumer for {self._queue}")
         try:
