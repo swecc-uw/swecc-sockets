@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Dict, Optional, Callable, Any, Coroutine
+import pydantic
 
 from pika.exchange_type import ExchangeType
 
@@ -27,6 +28,7 @@ class RabbitMQManager:
         queue,
         routing_key,
         exchange_type=ExchangeType.topic,
+        schema: Optional[pydantic.BaseModel]=None
     ):
         def decorator(callback):
             name = f"{callback.__module__}.{callback.__name__}"
@@ -38,6 +40,7 @@ class RabbitMQManager:
                 "routing_key": routing_key,
                 "exchange_type": exchange_type,
                 "declare_exchange": declare_exchange,
+                "schema": schema
             }
 
             return callback
@@ -105,6 +108,7 @@ class RabbitMQManager:
                 routing_key=config["routing_key"],
                 exchange_type=config["exchange_type"],
                 declare_exchange=config["declare_exchange"],
+                schema=config["schema"]
             )
 
     def add_consumer(
@@ -117,6 +121,7 @@ class RabbitMQManager:
         routing_key: str,
         exchange_type: ExchangeType = ExchangeType.topic,
         prefetch_count: int = 1,
+        schema: Optional[pydantic.BaseModel] = None,
     ) -> AsyncRabbitConsumer:
         if name in self.consumers:
             raise ValueError(f"Consumer with name '{name}' already exists")
@@ -129,6 +134,7 @@ class RabbitMQManager:
             callback=callback,
             prefetch_count=prefetch_count,
             declare_exchange=declare_exchange,
+            schema=schema
         )
 
         self.consumers[name] = consumer

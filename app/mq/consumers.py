@@ -4,32 +4,22 @@ from ..connection_manager import ConnectionManager
 from ..handlers import HandlerKind
 from ..message import Message, MessageType
 from . import consumer
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 # Declare consumers here
 
-@consumer(queue="sockets.reviewed-resume", exchange="ai", routing_key="reviewed")
+class ReviewedResumeMessage(BaseModel):
+    feedback: str
+    key: str
+
+@consumer(queue="sockets.reviewed-resume", exchange="ai", routing_key="reviewed", schema=ReviewedResumeMessage)
 async def reviewed_resume_consumer(body, properties):
     """
     Consumer for the reviewed resume queue.
     """
-    # Process the message
-    body = body.decode("utf-8")
-    logger.info(f"Received reviewed resume message: {body}")
-    try:
-        body = json.loads(body)
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to decode JSON: {e}")
-        return
-    feedback = body.get("feedback", None)
-    key = body.get("key", None)
-
-    if feedback is None or key is None:
-        logger.error("Feedback or key not found in message")
-        return
-
-    user_id, resume_id, file_name = key.split("-")
+    user_id, resume_id, file_name = body.key.split("-")
 
     ws_connection_manager = ConnectionManager()
     websocket = ws_connection_manager.get_websocket_connection(HandlerKind.Resume, int(user_id))
@@ -42,11 +32,11 @@ async def reviewed_resume_consumer(body, properties):
         type=MessageType.RESUME_REVIEWED,
         user_id=int(user_id),
         username=None,
-        message=f"Resume reviewed for user {user_id} with feedback: {feedback}",
+        message=f"Resume reviewed for user {user_id} with feedback: {body.feedback}",
         data={
             "resume_id": resume_id,
             "file_name": file_name,
-            "feedback": feedback,
+            "feedback": body.feedback,
         },
     )
 

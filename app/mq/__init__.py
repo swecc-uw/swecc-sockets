@@ -17,10 +17,11 @@ def consumer(
     exchange=DEFAULT_EXCHANGE,
     exchange_type=ExchangeType.topic,
     declare_exchange=True,
+    schema=None
 ) -> Callable:
     """decorator for registering consumers"""
     return _manager.register_callback(
-        exchange, declare_exchange, queue, routing_key, exchange_type
+        exchange, declare_exchange, queue, routing_key, exchange_type, schema
     )
 
 
