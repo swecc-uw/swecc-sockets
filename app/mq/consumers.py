@@ -14,7 +14,7 @@ class ReviewedResumeMessage(BaseModel):
     feedback: str
     key: str
 
-@consumer(queue="sockets.reviewed-resume", exchange="ai", routing_key="reviewed", schema=ReviewedResumeMessage)
+@consumer(queue="sockets.reviewed-resume", exchange="swecc-ai-exchange", routing_key="reviewed", schema=ReviewedResumeMessage)
 async def reviewed_resume_consumer(body, properties):
     """
     Consumer for the reviewed resume queue.
