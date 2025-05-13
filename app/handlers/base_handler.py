@@ -37,7 +37,6 @@ class BaseHandler:
     async def handle_disconnect(self, event: Event) -> None:
         try:
             user_id = event.user_id
-            await self._stop_logs(user_id)
             self.logger.info(
                 f"{self.service_name} service: User {event.username} (ID: {user_id}) disconnected"
             )

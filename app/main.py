@@ -59,7 +59,7 @@ async def cleanup_websocket(kind: HandlerKind, user: dict):
     connection_manager = ConnectionManager()
     event_emitter = EVENT_EMITTERS[kind]
     try:
-        connection_manager.disconnect(HandlerKind.Echo, user["user_id"])
+        connection_manager.disconnect(kind, user["user_id"])
         disconnect_event = Event(
             type=EventType.DISCONNECT,
             user_id=user["user_id"],
@@ -123,6 +123,7 @@ async def echo_endpoint(websocket: WebSocket, token: str):
         user = await authenticate_and_connect(HandlerKind.Echo, websocket, token)
         user_id = user["user_id"]
         username = user["username"]
+        await websocket.accept()
         # Message loop
         while True:
             try:
