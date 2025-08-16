@@ -8,13 +8,18 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Declare consumers here
 
 class ReviewedResumeMessage(BaseModel):
     feedback: str
     key: str
 
-@consumer(queue="sockets.reviewed-resume", exchange="swecc-ai-exchange", routing_key="reviewed", schema=ReviewedResumeMessage)
+
+@consumer(
+    queue="sockets.reviewed-resume",
+    exchange="swecc-ai-exchange",
+    routing_key="reviewed",
+    schema=ReviewedResumeMessage,
+)
 async def reviewed_resume_consumer(body, properties):
     """
     Consumer for the reviewed resume queue.
@@ -22,12 +27,14 @@ async def reviewed_resume_consumer(body, properties):
     user_id, resume_id, file_name = body.key.split("-")
 
     ws_connection_manager = ConnectionManager()
-    websocket = ws_connection_manager.get_websocket_connection(HandlerKind.Resume, int(user_id))
+    websocket = ws_connection_manager.get_websocket_connection(
+        HandlerKind.Resume, int(user_id)
+    )
 
     if websocket is None:
         logger.warning(f"No active WebSocket connection for user {user_id}")
         return
-    
+
     message = Message(
         type=MessageType.RESUME_REVIEWED,
         user_id=int(user_id),
