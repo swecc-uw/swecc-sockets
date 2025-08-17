@@ -230,7 +230,6 @@ async def resume_endpoint(websocket: WebSocket, token: str):
         user = await authenticate_and_connect(HandlerKind.Resume, websocket, token)
         user_id = user["user_id"]
         username = user["username"]
-        await websocket.accept()
         # Message loop
         while True:
             try:
