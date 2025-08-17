@@ -34,17 +34,17 @@ logger = logging.getLogger(__name__)
 
 async def authenticate_and_connect(
     kind: HandlerKind, websocket: WebSocket, token: str
-) -> dict:
+) -> tuple[dict, WebSocket]:
     user = await Auth.authenticate_ws(websocket, token)
     if not user:
         logger.warning("Authentication failed for WebSocket connection")
-        return None
+        return None, None
 
     user_id = user["user_id"]
     username = user["username"]
 
     connection_manager = ConnectionManager()
-    await connection_manager.register_connection(kind, user_id, websocket)
+    websocket = await connection_manager.register_connection(kind, user_id, websocket)
 
     connection_event = Event(
         type=EventType.CONNECTION,
@@ -54,7 +54,7 @@ async def authenticate_and_connect(
     )
     await EVENT_EMITTERS[kind].emit(connection_event)
 
-    return user
+    return user, websocket
 
 
 async def cleanup_websocket(kind: HandlerKind, user: dict):
@@ -123,10 +123,11 @@ async def echo_endpoint(websocket: WebSocket, token: str):
     user = None
 
     try:
-        user = await authenticate_and_connect(HandlerKind.Echo, websocket, token)
+        user, websocket = await authenticate_and_connect(
+            HandlerKind.Echo, websocket, token
+        )
         user_id = user["user_id"]
         username = user["username"]
-        await websocket.accept()
         # Message loop
         while True:
             try:
@@ -176,7 +177,9 @@ async def logs_endpoint(websocket: WebSocket, token: str):
 
     try:
         # Authenticate and check for admin rights
-        user = await authenticate_and_connect(HandlerKind.Logs, websocket, token)
+        user, websocket = await authenticate_and_connect(
+            HandlerKind.Logs, websocket, token
+        )
         user_id = user["user_id"]
         username = user["username"]
         # Message loop
@@ -227,7 +230,9 @@ async def resume_endpoint(websocket: WebSocket, token: str):
     user = None
 
     try:
-        user = await authenticate_and_connect(HandlerKind.Resume, websocket, token)
+        user, websocket = await authenticate_and_connect(
+            HandlerKind.Resume, websocket, token
+        )
         user_id = user["user_id"]
         username = user["username"]
         # Message loop

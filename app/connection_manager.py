@@ -6,6 +6,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+
 class ConnectionManager:
 
     instance = None
@@ -22,25 +23,34 @@ class ConnectionManager:
 
     def get_active_user_ids(self) -> Set[int]:
         return set(map(lambda x: x[1], self.user_connections.keys()))
-    
-    async def register_connection(self, kind: HandlerKind, user_id: int, websocket: WebSocket) -> None:
+
+    async def register_connection(
+        self, kind: HandlerKind, user_id: int, websocket: WebSocket
+    ) -> WebSocket:
         if (kind, user_id) in self.user_connections:
             logger.warning(f"User {user_id} already connected for handler {kind}.")
-            return
-        
+            return self.user_connections[(kind, user_id)]
+
         await websocket.accept()
 
         connection_id = id(websocket)
         self.user_connections[(kind, user_id)] = websocket
         self.ws_connections[connection_id] = websocket
 
-        logger.info(f"User {user_id} connected for handler {kind}. Total connections: {len(self.ws_connections)}")
+        logger.info(
+            f"User {user_id} connected for handler {kind}. Total connections: {len(self.ws_connections)}"
+        )
+        return websocket
 
-    def get_websocket_connection(self, kind: HandlerKind, user_id: int) -> Optional[WebSocket]:
+    def get_websocket_connection(
+        self, kind: HandlerKind, user_id: int
+    ) -> Optional[WebSocket]:
         websocket = self.user_connections.get((kind, user_id))
 
         if not websocket:
-            logger.warning(f"No active connection found for user {user_id} and handler {kind}.")
+            logger.warning(
+                f"No active connection found for user {user_id} and handler {kind}."
+            )
             return None
 
         if self.is_connection_closing(websocket):
@@ -53,7 +63,9 @@ class ConnectionManager:
         websocket = self.user_connections.get((kind, user_id))
 
         if not websocket:
-            logger.warning(f"No active connection found for user {user_id} and handler {kind}.")
+            logger.warning(
+                f"No active connection found for user {user_id} and handler {kind}."
+            )
             return
 
         connection_id = id(websocket)
@@ -67,11 +79,12 @@ class ConnectionManager:
         if (kind, user_id) in self.user_connections:
             del self.user_connections[(kind, user_id)]
 
-        logger.info(f"WebSocket disconnected. Total connections: {len(self.ws_connections)}")
+        logger.info(
+            f"WebSocket disconnected. Total connections: {len(self.ws_connections)}"
+        )
 
     def __new__(cls):
         if cls.instance is None:
             cls.instance = super(ConnectionManager, cls).__new__(cls)
             cls.instance.initialized = False
         return cls.instance
-        
