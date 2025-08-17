@@ -31,6 +31,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 async def authenticate_and_connect(
     kind: HandlerKind, websocket: WebSocket, token: str
 ) -> dict:
@@ -55,6 +56,7 @@ async def authenticate_and_connect(
 
     return user
 
+
 async def cleanup_websocket(kind: HandlerKind, user: dict):
     connection_manager = ConnectionManager()
     event_emitter = EVENT_EMITTERS[kind]
@@ -71,6 +73,7 @@ async def cleanup_websocket(kind: HandlerKind, user: dict):
         )
     except Exception as e:
         logger.error(f"Error during WebSocket cleanup: {str(e)}", exc_info=True)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -214,6 +217,7 @@ async def logs_endpoint(websocket: WebSocket, token: str):
         if user:
             await cleanup_websocket(HandlerKind.Logs, user)
 
+
 @app.websocket("/ws/resume/{token}")
 async def resume_endpoint(websocket: WebSocket, token: str):
     event_emitter = EVENT_EMITTERS[HandlerKind.Resume]
@@ -226,6 +230,7 @@ async def resume_endpoint(websocket: WebSocket, token: str):
         user = await authenticate_and_connect(HandlerKind.Resume, websocket, token)
         user_id = user["user_id"]
         username = user["username"]
+        await websocket.accept()
         # Message loop
         while True:
             try:
@@ -253,6 +258,7 @@ async def resume_endpoint(websocket: WebSocket, token: str):
     finally:
         if user:
             await cleanup_websocket(HandlerKind.Resume, user)
+
 
 if __name__ == "__main__":
     import uvicorn
