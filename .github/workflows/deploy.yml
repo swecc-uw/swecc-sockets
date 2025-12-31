@@ -6,16 +6,16 @@ on:
   workflow_dispatch:
 
 env:
-  SERVICE_NAME: 'sockets'
-  NETWORK: 'prod_swecc-network'
-  CPU_LIMIT: '0.3'
-  MEMORY_LIMIT: '256M'
-  CPU_RESERVE: '0.1'
-  MEMORY_RESERVE: '128M'
-  IMAGE: 'swecc-sockets'
+  SERVICE_NAME: "sockets"
+  NETWORK: "prod_swecc-network"
+  CPU_LIMIT: "0.3"
+  MEMORY_LIMIT: "256M"
+  CPU_RESERVE: "0.1"
+  MEMORY_RESERVE: "128M"
+  IMAGE: "swecc-sockets"
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  CONFIG_NAME: 'sockets_env'
+  CONFIG_NAME: "sockets_env"
 
 jobs:
   push_to_dockerhub:
@@ -80,6 +80,9 @@ jobs:
         if: steps.check_service.outputs.existing_service == 'true'
         run: |
           STAGING_NAME="${{ env.SERVICE_NAME }}-staging"
+
+          echo "Ensure no existing staging service"
+          docker service rm $STAGING_NAME || true
 
           echo "Creating temporary service: $STAGING_NAME"
           docker service create \
